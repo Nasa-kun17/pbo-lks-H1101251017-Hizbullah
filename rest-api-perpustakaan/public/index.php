@@ -1,89 +1,82 @@
 <?php
 
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Accept');
-header('Access-Control-Max-Age: 86400');
-
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(204);
-    exit;
-}
-
 require_once __DIR__ . '/../vendor/autoload.php';
 
 use App\Config\Env;
-use App\Controllers\BookController;
-use App\Controllers\CategoryController;
-use App\Contracts\BookRepositoryInterface;
-use App\Contracts\CategoryRepositoryInterface;
-use App\Core\Container;
-use App\Core\Request;
-use App\Core\Response;
-use App\Core\Router;
 use App\Database\Connection;
-use App\Repositories\MySQLBookRepository;
-use App\Repositories\MySQLCategoryRepository;
-use App\Services\BookService;
-use App\Services\CategoryService;
+use App\Core\Container;
+use App\Core\Router;
+use App\Core\Request;
 
-// ============ 1. Load konfigurasi ============
+use App\Contracts\BookRepositoryInterface;
+use App\Repositories\MySQLBookRepository;
+use App\Services\BookService;
+use App\Controllers\BookController;
+
+use App\Contracts\CategoryRepositoryInterface;
+use App\Repositories\MySQLCategoryRepository;
+use App\Services\CategoryService;
+use App\Controllers\CategoryController;
+
+// 1. Load environment variables (.env)
 Env::load(__DIR__ . '/../.env');
 
-// ============ 2. Setup Dependency Container ============
+// 2. Koneksi ke Database (PDO)
+$pdo = Connection::get();
+
+// 3. Inisialisasi Container untuk Dependency Injection
 $container = new Container();
-$container->singleton(PDO::class, fn() => Connection::get());
 
-// Binding Book
-$container->bind(
-    BookRepositoryInterface::class,
-    fn(Container $c) => new MySQLBookRepository($c->make(PDO::class))
-);
-$container->bind(
-    BookService::class,
-    fn(Container $c) => new BookService($c->make(BookRepositoryInterface::class))
-);
-$container->bind(
-    BookController::class,
-    fn(Container $c) => new BookController($c->make(BookService::class))
-);
+// =========================================================================
+// BINDING DEPENDENCY - BOOK
+// =========================================================================
+$container->bind(BookRepositoryInterface::class, function() use ($pdo) {
+    return new MySQLBookRepository($pdo);
+});
 
-// Binding Category
-$container->bind(
-    CategoryRepositoryInterface::class,
-    fn(Container $c) => new MySQLCategoryRepository($c->make(PDO::class))
-);
-$container->bind(
-    CategoryService::class,
-    fn(Container $c) => new CategoryService($c->make(CategoryRepositoryInterface::class))
-);
-$container->bind(
-    CategoryController::class,
-    fn(Container $c) => new CategoryController($c->make(CategoryService::class))
-);
+$container->bind(BookService::class, function($c) {
+    return new BookService($c->make(BookRepositoryInterface::class));
+});
 
-// ============ 3. Daftarkan Route ============
+$container->bind(BookController::class, function($c) {
+    return new BookController($c->make(BookService::class));
+});
+
+// =========================================================================
+// BINDING DEPENDENCY - CATEGORY (TAMBAHAN LANGKAH 14)
+// =========================================================================
+$container->bind(CategoryRepositoryInterface::class, function() use ($pdo) {
+    return new MySQLCategoryRepository($pdo);
+});
+
+$container->bind(CategoryService::class, function($c) {
+    return new CategoryService($c->make(CategoryRepositoryInterface::class));
+});
+
+$container->bind(CategoryController::class, function($c) {
+    return new CategoryController($c->make(CategoryService::class));
+});
+
+// 4. Inisialisasi Router
 $router = new Router();
-$bookCtrl = $container->make(BookController::class);
-$categoryCtrl = $container->make(CategoryController::class);
 
-// Route Book
-$router->get('/api/books', [$bookCtrl, 'index']);
-$router->get('/api/books/{id}', [$bookCtrl, 'show']);
-$router->post('/api/books', [$bookCtrl, 'store']);
-$router->put('/api/books/{id}', [$bookCtrl, 'update']);
-$router->delete('/api/books/{id}', [$bookCtrl, 'destroy']);
+// =========================================================================
+// ROUTES - BOOK
+// =========================================================================
+$router->get('/api/books', [$container->make(BookController::class), 'index']);
+$router->get('/api/books/{id}', [$container->make(BookController::class), 'show']);
+$router->post('/api/books', [$container->make(BookController::class), 'store']);
+$router->put('/api/books/{id}', [$container->make(BookController::class), 'update']);
+$router->delete('/api/books/{id}', [$container->make(BookController::class), 'destroy']);
 
-// Route Category
-$router->get('/api/categories', [$categoryCtrl, 'index']);
-$router->get('/api/categories/{id}', [$categoryCtrl, 'show']);
-$router->post('/api/categories', [$categoryCtrl, 'store']);
-$router->put('/api/categories/{id}', [$categoryCtrl, 'update']);
-$router->delete('/api/categories/{id}', [$categoryCtrl, 'destroy']);
+// =========================================================================
+// ROUTES - CATEGORY (TAMBAHAN LANGKAH 14)
+// =========================================================================
+$router->get('/api/categories', [$container->make(CategoryController::class), 'index']);
+$router->get('/api/categories/{id}', [$container->make(CategoryController::class), 'show']);
+$router->post('/api/categories', [$container->make(CategoryController::class), 'store']);
+$router->put('/api/categories/{id}', [$container->make(CategoryController::class), 'update']);
+$router->delete('/api/categories/{id}', [$container->make(CategoryController::class), 'destroy']);
 
-// ============ 4. Dispatch Request ============
-try {
-    $router->dispatch(new Request());
-} catch (Throwable $e) {
-    Response::error('Server Error: ' . $e->getMessage(), 500);
-}
+// 5. Jalankan Request
+$router->dispatch(new Request());
