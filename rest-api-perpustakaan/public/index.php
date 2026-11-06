@@ -1,5 +1,18 @@
 <?php
 
+// =========================================================================
+// CORS HEADER (TAMBAHAN LANGKAH 16)
+// =========================================================================
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, Accept');
+header('Access-Control-Max-Age: 86400');
+
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(204);
+    exit;
+}
+
 require_once __DIR__ . '/../vendor/autoload.php';
 
 use App\Config\Env;
@@ -43,7 +56,7 @@ $container->bind(BookController::class, function($c) {
 });
 
 // =========================================================================
-// BINDING DEPENDENCY - CATEGORY (TAMBAHAN LANGKAH 14)
+// BINDING DEPENDENCY - CATEGORY
 // =========================================================================
 $container->bind(CategoryRepositoryInterface::class, function() use ($pdo) {
     return new MySQLCategoryRepository($pdo);
@@ -70,7 +83,7 @@ $router->put('/api/books/{id}', [$container->make(BookController::class), 'updat
 $router->delete('/api/books/{id}', [$container->make(BookController::class), 'destroy']);
 
 // =========================================================================
-// ROUTES - CATEGORY (TAMBAHAN LANGKAH 14)
+// ROUTES - CATEGORY
 // =========================================================================
 $router->get('/api/categories', [$container->make(CategoryController::class), 'index']);
 $router->get('/api/categories/{id}', [$container->make(CategoryController::class), 'show']);
