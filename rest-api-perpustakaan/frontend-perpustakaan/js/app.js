@@ -10,11 +10,21 @@ class App {
 
         switch (hash) {
             case '#dashboard':
-                DashboardPage.render(container);
+                if (typeof DashboardPage !== 'undefined') {
+                    DashboardPage.render(container);
+                } else {
+                    container.innerHTML = `<p class="text-center text-red-500">DashboardPage belum dimuat.</p>`;
+                }
                 break;
+
             case '#books':
-                BooksPage.render(container);
+                if (typeof BooksPage !== 'undefined') {
+                    BooksPage.render(container);
+                } else {
+                    container.innerHTML = `<p class="text-center text-red-500">Halaman Buku belum dimuat atau ada error.</p>`;
+                }
                 break;
+
             case '#categories':
                 if (typeof CategoriesPage !== 'undefined') {
                     CategoriesPage.render(container);
@@ -22,6 +32,7 @@ class App {
                     container.innerHTML = `<p class="text-center text-gray-500">Halaman Kategori belum dimuat.</p>`;
                 }
                 break;
+
             default:
                 container.innerHTML = `<h2 class="text-xl font-bold text-red-500 text-center">404 - Halaman Tidak Ditemukan</h2>`;
         }
